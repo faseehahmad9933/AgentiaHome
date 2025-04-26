@@ -1,0 +1,21 @@
+[project]
+name = "agentiahome"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Faseeh Ahmad", email = "faseehkamboh9933@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.76.0",
+    "openai-agents>=0.0.13",
+    "python-dotenv>=1.1.0",
+]
+
+[project.scripts]
+agentiahome = "agentiahome:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
