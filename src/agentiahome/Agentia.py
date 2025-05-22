@@ -1,10 +1,12 @@
 import os
-from agents import Agent, Runner, OpenAIChatCompletionsModel
+from agents import Agent, Runner, OpenAIChatCompletionsModel, FunctionTool, function_tool
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from agents.run import RunConfig
 import asyncio
 from openai import OpenAI
+import requests
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -31,12 +33,38 @@ config = RunConfig(
     model_provider=client,
     tracing_disabled=True
 )
+# Tools
+@function_tool  
+async def lightState() -> str:
+    """Tell the state of the light (is it ON or OFF).
+    """
+    response = requests.get('https://io.adafruit.com/api/v2/Faseeh99/feeds/light/data/last').json()
+    if response['value'] == 'ON':
+        return "The light is ON"
+    elif response['value'] == 'OFF':
+        return "The light is OFF"
+    else:
+        return "Unknown state"
+    
+@function_tool  
+async def FanState() -> str:
+    """Tell the state of the Fan (is it ON or OFF).
+    """
+    response = requests.get('https://io.adafruit.com/api/v2/Faseeh99/feeds/light/data/last').json()
+    if response['value'] == 'ON':
+        return "The light is ON"
+    elif response['value'] == 'OFF':
+        return "The light is OFF"
+    else:
+        return "Unknown state"
+
 
 # Running the main Function 
 async def main():
     agent = Agent(
         name="Linksy",
         instructions="You are helpful Home Assistant, who can control Home Appliances",
+        tools=[lightState, read_file],
         model=model
     )
 
