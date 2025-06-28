@@ -13,7 +13,7 @@ import re
 
 # Load environment variables from .env file
 load_dotenv()
-GEMINIKEY = os.getenv("GEMINI_KEY")
+GEMINIKEY = "AIzaSyBLLjLgbNo3RtnwM3iP5Fs_OjeV7zUthzM" or os.getenv("GEMINI_KEY")
 BASE_URL = os.getenv("BASE_URL")
 MODAL = "gemini-2.5-flash-preview-05-20"
 if not GEMINIKEY:    
