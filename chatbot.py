@@ -1,5 +1,7 @@
+import datetime
+import time
 import os
-from agents import Agent, Runner, OpenAIChatCompletionsModel, FunctionTool, function_tool
+from agents import Agent, Runner, OpenAIChatCompletionsModel, FunctionTool, function_tool, GuardrailFunctionOutput, OutputGuardrailTripwireTriggered, output_guardrail
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from agents.run import RunConfig
@@ -138,6 +140,24 @@ async def RoomTemperature() -> str:
         return "Temperture: 37 Deg"
 
 @function_tool  
+async def RoomHumidity() -> str:
+    """Tell's the exact value of Humidity of the Room.
+    """
+    url = f"https://io.adafruit.com/api/v2/Faseeh99/feeds/hum/data/last"
+
+    headers = {
+    "X-AIO-Key": "aio_BkWV97XU3OyMZ73Ke3a8x1c9aEN1"
+    }
+    response = requests.get(url, headers=headers)
+    jsonRespounse= response.json()
+    value = jsonRespounse.get('value')
+    print(value)
+    if value != None:
+        return f"The Humidity is {value}"
+    else:
+        return "Humidity: 37 Deg"
+
+@function_tool  
 async def TurnOnTheFan() -> str:
     """change the state of Fan to 1 (i.e ON).
     """
@@ -270,78 +290,26 @@ async def ShedulerFunction(FuncName: str, Tim: int) -> str:
         FuncName: Function name or natural language description (e.g., 'turn on light', 'TurnOnTheLight')
         Tim: Time in seconds to wait before execution
     """
-    # Map natural language phrases to function names
-    phrase_map = {
-        # Light controls
-        "turn on light": "TurnOnTheLight",
-        "turn on the light": "TurnOnTheLight",
-        "switch on light": "TurnOnTheLight",
-        "light on": "TurnOnTheLight",
-        "turn off light": "TurnOffTheLight", 
-        "turn off the light": "TurnOffTheLight",
-        "switch off light": "TurnOffTheLight",
-        "light off": "TurnOffTheLight",
-        # Fan controls
-        "turn on fan": "TurnOnTheFan",
-        "turn on the fan": "TurnOnTheFan", 
-        "switch on fan": "TurnOnTheFan",
-        "fan on": "TurnOnTheFan",
-        "turn off fan": "TurnOffTheFan",
-        "turn off the fan": "TurnOffTheFan",
-        "switch off fan": "TurnOffTheFan", 
-        "fan off": "TurnOffTheFan",
-        # Status checks
-        "check light": "lightState",
-        "light status": "lightState",
-        "check fan": "FanState",
-        "fan status": "FanState",
-        "temperature": "RoomTemperature",
-        "room temperature": "RoomTemperature",
-        "check temperature": "RoomTemperature"
-    }
-    
-    # Normalize input and find the function
-    normalized = FuncName.strip().lower()
-    mapped_func_name = phrase_map.get(normalized, FuncName)
-    
-    # Map function names to function_tool objects
-    function_map = {
-        "TurnOnTheLight": TurnOnTheLight,
-        "TurnOffTheLight": TurnOffTheLight,
-        "TurnOnTheFan": TurnOnTheFan,
-        "TurnOffTheFan": TurnOffTheFan,
-        "FanState": FanState,
-        "lightState": lightState,
-        "RoomTemperature": RoomTemperature,
-    }
-    
-    func = function_map.get(mapped_func_name)
-    if not func:
-        available_functions = ", ".join(list(phrase_map.keys())[:5]) + "..."
-        return f"❌ Function '{FuncName}' not found. Available options: {available_functions}"
-    
-    # Convert time to human-readable format
-    time_str = f"{Tim} seconds"
-    if Tim >= 60:
-        minutes = Tim // 60
-        seconds = Tim % 60
-        if seconds == 0:
-            time_str = f"{minutes} minute{'s' if minutes > 1 else ''}"
-        else:
-            time_str = f"{minutes} minute{'s' if minutes > 1 else ''} and {seconds} second{'s' if seconds > 1 else ''}"
-    
-    # Schedule the task
-    await asyncio.sleep(Tim)
-    result = await func()
-    
-    return f"✅ Scheduled task completed! {mapped_func_name} executed after {time_str}. Result: {result}"
+
+    now = datetime.datetime.now()
+    wait_time = datetime.timedelta(seconds=Tim)
+    future_time = now + wait_time
+
+    print(f"Waiting for {Tim} seconds, starting at {now}")
+
+    time.sleep(wait_time.total_seconds())
+
+    print(f"Waited for {Tim} seconds. Current time: {datetime.datetime.now()}")
+
+    return f"✅ Scheduled task completed! executed after {Tim} seconds."
+
 
 @cl.on_chat_start
 async def main():
     # Initialize the agent first
     agent = Agent(
-        name="Linksy",
-        instructions="""You are Linksy, an intelligent and friendly Home Assistant Agent. You can control home appliances and provide real-time information about your smart home.
+        name="Basheer",
+        instructions="""You are Basheer, an intelligent and friendly Home Assistant Agent. You can control home appliances and provide real-time information about your smart home.
 
 **Your Capabilities:**
 🔆 **Light Control**: Turn lights on/off in any room
@@ -379,7 +347,7 @@ async def main():
 - ShedulerFunction (for delayed execution)
 
 Remember: You're here to make home automation simple and enjoyable! 😊""",
-        tools=[TurnOffTheFan, TurnOnTheLight, TurnOffTheLight, TurnOnTheFan, FanState, lightState, RoomTemperature, ShedulerFunction],
+        tools=[TurnOffTheFan, TurnOnTheLight, TurnOffTheLight, TurnOnTheFan, FanState, lightState, RoomTemperature, ShedulerFunction,RoomHumidity],
         model=model
     )
     
@@ -389,7 +357,7 @@ Remember: You're here to make home automation simple and enjoyable! 😊""",
     # Send welcome message after a small delay to ensure it appears after Chainlit's welcome
     await asyncio.sleep(0.5)
     await cl.Message(
-        content="Hello! I am your Home Assistant. How can I assist you today?"
+        content="Hello! I am Basheer, your Home Assistant. How can I assist you today?"
     ).send()
 
 # result = await Runner.run(agent, "Turn of the lights of my room", run_config=config)
@@ -400,7 +368,7 @@ async def on_message(message: cl.Message):
     agent = cl.user_session.get("agent")
     
     # Process the message with the agent
-    result = await Runner.run(agent, message.content, run_config=config)
+    result = await Runner.run_streamed(agent, message.content, run_config=config)
     
     # Send the response back to the user
     await cl.Message(content=result.final_output).send()
