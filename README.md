@@ -1,4 +1,4 @@
-# Basheer: Your Smart Home Assistant 🚀🤖
+# Basheer: Your Smart Home Assistant 🚀🤖  [Opensourced]
 
 Basheer is an intelligent, conversational home assistant that lets you control and monitor your smart home devices using natural language. Powered by modern LLMs (OpenAI/Gemini) and Chainlit, Basheer makes home automation simple, friendly, and fun!
 
@@ -85,9 +85,9 @@ Basheer will respond, execute the action, and confirm.
 
 ## ⚠️ License & Notice
 
-- Do not copy or redistribute this project without developer permission.
-- For more features and updates, contact the developer.
-
+- This project is entirely open-source and ready to be utilized as a foundational template for your next undertaking.
+- We encourage you to credit the original developer when showcasing this code on social platforms. Your recognition helps foster our open-source community!- 
+- 
 ---
 
 Happy tinkering with Basheer Bhai! 💻😊
