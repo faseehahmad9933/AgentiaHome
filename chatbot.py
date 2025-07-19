@@ -18,8 +18,8 @@ from Tools import lightState, FanState, RoomTemperature, RoomHumidity, TurnOnThe
 
 # Load environment variables from .env file
 load_dotenv()
-AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") or "7a3b48f7-ba78-47b5-b73b-57cf55d17525"
-GEMINIKEY = "AIzaSyBLLjLgbNo3RtnwM3iP5Fs_OjeV7zUthzM" or os.getenv("GEMINI_KEY")
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY")
+GEMINIKEY = os.getenv("GEMINI_KEY")
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/" or os.getenv("BASE_URL")
 MODAL = "gemini-2.5-flash-preview-05-20"
 agentops.init(
