@@ -1,9 +1,10 @@
 import datetime
 import time
 import os
-from agents import Agent, Runner, OpenAIChatCompletionsModel, FunctionTool, function_tool, GuardrailFunctionOutput, OutputGuardrailTripwireTriggered, output_guardrail
+from agents import Agent, Runner, OpenAIChatCompletionsModel,trace, FunctionTool, function_tool, GuardrailFunctionOutput, OutputGuardrailTripwireTriggered, output_guardrail
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
+import agentops 
 from agents.run import RunConfig
 import asyncio
 from openai import OpenAI
@@ -17,9 +18,14 @@ from Tools import lightState, FanState, RoomTemperature, RoomHumidity, TurnOnThe
 
 # Load environment variables from .env file
 load_dotenv()
+AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY") or "7a3b48f7-ba78-47b5-b73b-57cf55d17525"
 GEMINIKEY = "AIzaSyBLLjLgbNo3RtnwM3iP5Fs_OjeV7zUthzM" or os.getenv("GEMINI_KEY")
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/" or os.getenv("BASE_URL")
 MODAL = "gemini-2.5-flash-preview-05-20"
+agentops.init(
+    api_key=AGENTOPS_API_KEY,
+    default_tags=['openai agents sdk']
+)
 if not GEMINIKEY:    
     raise ValueError("GEMINI_KEY not found in environment variables")
 if not BASE_URL:
@@ -41,49 +47,24 @@ config = RunConfig(
     tracing_disabled=True
 )
 
-def parse_scheduling_request(user_input: str) -> tuple[str, int]:
-    """
-    Parse natural language scheduling requests to extract action and time.
-    Returns: (action, time_in_seconds)
-    """
-    user_input = user_input.lower().strip()
-    
-    # Time patterns
-    time_patterns = {
-        r'(\d+)\s*minute': lambda x: int(x) * 60,
-        r'(\d+)\s*min': lambda x: int(x) * 60,
-        r'(\d+)\s*hour': lambda x: int(x) * 3600,
-        r'(\d+)\s*hr': lambda x: int(x) * 3600,
-        r'(\d+)\s*second': lambda x: int(x),
-        r'(\d+)\s*sec': lambda x: int(x),
-        r'(\d+)\s*day': lambda x: int(x) * 86400,
-    }
-    
-    # Extract time
-    time_seconds = 60  # default 1 minute
-    for pattern, converter in time_patterns.items():
-        match = re.search(pattern, user_input)
-        if match:
-            time_seconds = converter(match.group(1))
-            break
-    
-    # Extract action (remove scheduling words and time references)
-    action = user_input
-    scheduling_words = ['schedule', 'scheduled', 'in', 'after', 'later', 'set', 'timer']
-    for word in scheduling_words:
-        action = action.replace(word, '').strip()
-    
-    # Remove time patterns from action
-    for pattern in time_patterns.keys():
-        action = re.sub(pattern, '', action).strip()
-    
-    # Clean up action
-    action = re.sub(r'\s+', ' ', action).strip()
-    
-    return action, time_seconds
 
 @cl.on_chat_start
 async def main():
+    TaskSheduler = Agent(name = "TaskSheduler",
+    instructions = """Give the name of the fuction tool and delaytime to the [ShedulerFunction] Tool,then call the specific tool as told by [ShedulerFunction]. 
+    For Example: You gave these two arguments to the Sheduler Function [TurnOnTheLight,3] 
+    Now, After the delaytime completed (After 3 Seconds), Sheduler Function returns:
+    "Time to do Scheduled task! Call the Function Tool [TurnOffTheFan]"
+    then call [TurnOffTheFan] tool from your toolset.
+
+    Similarly Second Example: You gave these two arguments to the Sheduler Function [TurnOnTheLight,5]
+    Now, After the delaytime completed (After 5 Seconds), Sheduler Function returns:
+    "Time to do Scheduled task! Call the Function Tool [TurnOnTheLight]"
+    then call [TurnOnTheLight] tool from your toolset.
+
+    Understand the request and use the tools.""",
+    tools=[ShedulerFunction, TurnOffTheFan, TurnOnTheLight, TurnOffTheLight, TurnOnTheFan, FanState, lightState, RoomTemperature,RoomHumidity],
+        model=model)
     # Initialize the agent first
     agent = Agent(
         name="Basheer",
@@ -115,9 +96,13 @@ async def main():
 - ShedulerFunction (for delayed execution)
 
 Remember: You're here to make home automation simple and enjoyable! 😊""",
-        tools=[TurnOffTheFan, TurnOnTheLight, TurnOffTheLight, TurnOnTheFan, FanState, lightState, RoomTemperature, ShedulerFunction,RoomHumidity],
+        tools=[TaskSheduler.as_tool(
+            tool_name="TaskSheduler",
+            tool_description="Shedules a task, and ends up when the task is completed",
+        ),TurnOffTheFan, TurnOnTheLight, TurnOffTheLight, TurnOnTheFan, FanState, lightState, RoomTemperature,RoomHumidity],
         model=model
     )
+
     
     # Store the agent in the session
     cl.user_session.set("agent", agent)
@@ -143,12 +128,19 @@ async def on_message(message: cl.Message):
     # Append user message and agent response to memory
     memory.append({"role": "user", "content": message.content})
     # Process the message with the agent
-    result = await Runner.run_streamed(agent,memory, run_config=config)
-    async for event in result.stream_events():
-        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
-            print(event.data.delta, end="", flush=True)
+    # Create a trace for the code review workflow
+    with trace("Assistant-workflow") as review_trace:
+        # # Start monitoring the agent
+        # with agentops.monitor():
+        result = Runner.run_streamed(agent,memory, run_config=config)
+        msg = cl.Message(content="")
+        async for event in result.stream_events():
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+            # print(event.data.delta, end="", flush=True) 
+                await msg.stream_token(event.data.delta)
+            # if token := event.choices[0].delta.content or "":
     memory.append({"role": "assistant", "content": result.final_output})
 
     cl.user_session.set("memory", memory)
     # Send the response back to the user
-    await cl.Message(content=result.final_output).send()
+    # await cl.Message(content=result.final_output).send()

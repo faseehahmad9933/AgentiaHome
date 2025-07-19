@@ -182,7 +182,7 @@ async def ShedulerFunction(FuncName: str, Tim: int) -> str:
     """
     Schedule a home automation task to be executed after a specified delay.
     Args:
-        FuncName: Function name or natural language description (e.g., 'turn on light', 'TurnOnTheLight')
+        FuncName: Function name
         Tim: Time in seconds to wait before execution
     """
     now = datetime.datetime.now()
@@ -191,4 +191,4 @@ async def ShedulerFunction(FuncName: str, Tim: int) -> str:
     print(f"Waiting for {Tim} seconds, starting at {now}")
     time.sleep(wait_time.total_seconds())
     print(f"Waited for {Tim} seconds. Current time: {datetime.datetime.now()}")
-    return f"✅ Scheduled task completed! executed after {Tim} seconds."
+    return f"✅Time to do Scheduled task! Call the Function Tool {FuncName}"

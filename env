@@ -1,3 +1,4 @@
 OPEN_ROUTER_API_KEY = "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"
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GEMINI_KEY = "AIzaSyBLLjLgbNo3RtnwM3iP5Fs_OjeV7zUthzM"
+AGENTOPS_API_KEY = "7a3b48f7-ba78-47b5-b73b-57cf55d17525"
